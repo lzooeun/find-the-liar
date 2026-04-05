@@ -1,0 +1,12 @@
+{
+  "English": [
+    { "category": "Animal", "word": "Tiger" },
+    { "category": "Food", "word": "Hamburger" },
+    { "category": "Fruit", "word": "Watermelon" }
+  ],
+  "Korean": [
+    { "category": "동물", "word": "호랑이" },
+    { "category": "음식", "word": "햄버거" },
+    { "category": "과일", "word": "수박" }
+  ]
+}

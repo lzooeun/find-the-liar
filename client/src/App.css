@@ -1,0 +1,568 @@
+/* client/src/App.css */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Inter:ital,wght@0,400;0,600;0,800;1,800&display=swap');
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+
+:root {
+  --bg-color: #121212; /* 디스코드 다크 테마 배경 */
+  --card-bg: #1e1f22;
+  --text-main: #ffffff;
+  --text-muted: #b5bac1;
+  --accent-color: #9575CD; /* 라벤더/퍼플 쿨톤 포인트 */
+  --accent-hover: #9333ea;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  max-width: 1440px;
+}
+
+/* --- 랜딩 페이지 UI --- */
+.landing-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 3rem; /* 전체적으로 살짝 위로 올림 */
+}
+
+.title-section {
+  text-align: center;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.subtitle {
+  font-family: 'Caveat', cursive;
+  color: var(--text-muted);
+  font-size: 24px;
+  z-index: 1;
+  color: #9575CD;
+}
+
+.main-title {
+  font-size: 7.5rem; /* 더 과감하게 키움 */
+  font-weight: 800;
+  margin: 0;
+  line-height: 1; /* 겹침 방지 핵심 */
+  letter-spacing: 2px;
+  font-family: 'Inter';
+  font-style: italic;
+}
+
+.player-pill {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 6px 20px 6px 8px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+}
+
+.pill-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #2b2d31;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: 1rem;
+}
+
+.btn {
+  padding: 16px 24px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.btn svg {
+  margin-left: 8px;
+}
+
+.btn-primary {
+  background-color: #e5e7eb;
+  color: #1f2937;
+}
+
+.btn-primary:hover {
+  background-color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.connected-players {
+  display: flex;
+  margin-bottom: 5rem;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid var(--bg-color);
+  background-color: #5865F2;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  object-fit: cover;
+}
+
+.avatar.speaking {
+  border-color: #57F287;
+  box-shadow: 0 0 10px rgba(87, 242, 135, 0.5); /* 살짝 빛나는 효과 */
+  transition: all 0.2s ease-in-out;
+}
+
+/* --- How to play 섹션 --- */
+.how-to-play h2 {
+  text-align: center;
+  margin-bottom: 2rem;
+  font-weight: 600;
+  font-family: 'Inter';
+  font-style: italic;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.rule-card {
+  background-color: var(--card-bg);
+  padding: 24px;
+  border-radius: 16px;
+  text-align: left;
+}
+
+.rule-number {
+  color: var(--accent-color);
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+}
+
+.rule-card h3 {
+  margin: 0 0 10px 0;
+}
+
+.rule-card p {
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* --- 모달 (Settings) --- */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #2b2d31;
+  padding: 2rem;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 400px;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.modal-title {
+  font-style: italic;
+  font-size: 2rem;
+  margin-top: 0;
+  border-bottom: 3px solid var(--accent-color);
+  display: inline-block;
+  padding-bottom: 5px;
+  margin-bottom: 2rem;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.setting-label {
+  width: 100px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.setting-options {
+  display: flex;
+  gap: 15px;
+}
+
+.option-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.option-btn.active {
+  color: var(--accent-color);
+}
+
+/* --- 화면 전환 (로딩/할당) UI --- */
+.assigning-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.assigning-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 3.5rem;
+  font-style: italic;
+  font-weight: 800;
+  color: var(--accent-color);
+  margin-bottom: 1rem;
+  letter-spacing: 2px;
+  animation: pulse 1.5s infinite; 
+}
+
+.assigning-subtitle {
+  color: var(--text-muted);
+  font-size: 1.2rem;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; transform: scale(0.98); }
+  50% { opacity: 1; transform: scale(1.02); text-shadow: 0 0 20px rgba(168, 85, 247, 0.6); }
+  100% { opacity: 0.6; transform: scale(0.98); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- 역할 확인 (REVEAL) UI --- */
+.role-card {
+  background: var(--card-bg); /* 기존 랜딩 컨테이너와 비슷한 어두운 톤 */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  animation: flipIn 0.6s ease-out forwards;
+  max-width: 400px;
+  width: 90%;
+  margin: 0 auto;
+}
+
+.role-title {
+  font-size: 2.5rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+/* 역할별 색상 포인트 */
+.role-liar { color: #ff4757; text-shadow: 0 0 15px rgba(255, 71, 87, 0.4); }
+.role-citizen { color: #2ed573; text-shadow: 0 0 15px rgba(46, 213, 115, 0.4); }
+
+.word-box {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin: 2rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.word-category {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.word-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 2px;
+}
+
+@keyframes flipIn {
+  from { transform: perspective(600px) rotateY(90deg); opacity: 0; }
+  to { transform: perspective(600px) rotateY(0deg); opacity: 1; }
+}
+
+/* --- 게임 진행 (PLAYING) UI --- */
+.playing-container {
+  width: 100%; 
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.game-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.info-text {
+  font-size: 1.1rem;
+  color: #e2e8f0;
+}
+
+.discussion-title {
+  font-family: 'Pretendard', 'Inter', sans-serif; 
+  font-style: normal;
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #9575CD;
+  margin-bottom: 0.5rem;
+  letter-spacing: -1px;
+}
+
+.discussion-subtitle {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+.timer-display {
+  font-size: 4rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 1.5rem 0;
+}
+
+/* 참가자 수에 맞춰 유동적으로 변하는 그리드 레이아웃 */
+.avatar-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  max-width: 800px;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.avatar-relative-box {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.game-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: #333;
+  border: 4px solid transparent; /* 기본 테두리 */
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+/* 활성화(내 차례) & 비활성화 상태 */
+.avatar-wrapper.active .game-avatar {
+  transform: scale(1.1);
+  border-color: #f39c12; /* 목업의 오렌지색 하이라이트 */
+}
+
+.avatar-wrapper.dimmed {
+  opacity: 0.4;
+  filter: grayscale(40%);
+}
+
+/* 마이크 감지 테두리 (초록색 오버라이드) */
+.game-avatar.speaking-border {
+  border-color: #2ed573 !important;
+  box-shadow: 0 0 15px rgba(46, 213, 115, 0.6);
+}
+
+.avatar-name {
+  margin-top: 0.8rem;
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.turn-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #a855f7;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  border: 2px solid var(--bg-color);
+}
+
+/* END TURN 버튼 (작고 깔끔하게) */
+.end-turn-btn {
+  background: #ffffff;
+  color: #000000;
+  font-weight: bold;
+  padding: 0.8rem 2rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+.end-turn-btn:hover { background: #e0e0e0; }
+
+.round-badge {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.voted-highlight .game-avatar {
+  border-color: #ff4757 !important; /* 선택 시 붉은색 테두리 */
+  box-shadow: 0 0 20px rgba(255, 71, 87, 0.6);
+  transform: scale(1.15);
+}
+
+.avatar-wrapper.active:hover .game-avatar {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.liar-input {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid #ff4757;
+  color: white;
+  font-size: 2rem;
+  text-align: center;
+  width: 90%;
+  padding: 10px 0;
+  margin: 1rem auto 0;
+  display: block;
+  box-sizing: border-box;
+  
+  outline: none;
+  font-family: inherit;
+}
+
+.liar-input:focus::placeholder {
+  color: transparent;
+}
+
+.liar-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.2s ease;
+}
+
+@media (max-height: 750px) {
+  .discussion-title { font-size: 2.5rem; }
+  .timer-display { font-size: 3rem; margin: 1rem 0; }
+  .game-avatar { width: 70px; height: 70px; }
+  .avatar-grid { gap: 1rem; }
+}
+
+/* --- PiP 모드 (화면 크기가 극단적으로 작아질 때) --- */
+@media (max-width: 350px), (max-height: 250px) {
+  /* 기존 게임 UI와 랜딩 컨테이너를 모두 숨깁니다 */
+  .landing-container, 
+  .playing-container, 
+  .assigning-screen, 
+  .modal-overlay {
+    display: none !important;
+  }
+
+  /* PiP 화면 한가운데에 띄울 미니멀한 대체 화면을 바디에 직접 그립니다 */
+  body {
+    background-color: var(--bg-color);
+  }
+
+  /* 가상 요소를 사용해 'LIAR' 텍스트나 로고를 정중앙에 배치합니다 */
+  body::before {
+    content: "LIAR";
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    font-family: 'Inter', sans-serif;
+    font-style: italic;
+    font-weight: 900;
+    font-size: 3rem;
+    color: #9575CD;
+    letter-spacing: 2px;
+    text-shadow: 0 0 15px rgba(149, 117, 205, 0.5);
+  }
+}
