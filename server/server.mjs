@@ -16,7 +16,10 @@ const wordsPath = path.join(__dirname, 'words.json');
 const wordsData = JSON.parse(fs.readFileSync(wordsPath, 'utf8'));
 
 const app = express();
-app.use(cors()); 
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "*",
+  credentials: true
+}));
 
 const server = createServer(app);
 const io = new Server(server, {
