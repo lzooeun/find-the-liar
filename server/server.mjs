@@ -15,42 +15,56 @@ const __dirname = path.dirname(__filename);
 const wordsPath = path.join(__dirname, 'words.json');
 const wordsData = JSON.parse(fs.readFileSync(wordsPath, 'utf8'));
 
-const app = express();
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "*",
-  credentials: true
+  origin: "*"
 }));
 
 const server = createServer(app);
 const io = new Server(server, {
   path: '/server/socket.io',
   cors: {
-    origin: process.env.FRONTEND_URL || "*",
-    methods: ["GET", "POST"],
-    credentials: true
+    origin: "*",
+    methods: ["GET", "POST"]
   }
 });
 
+const app = express();
 
 
 app.use(express.json())
 
 app.post('/server/api/token', async (req, res) => {
-  const response = await fetch(`https://discord.com/api/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      client_id: process.env.DISCORD_CLIENT_ID,
-      client_secret: process.env.DISCORD_CLIENT_SECRET,
-      grant_type: 'authorization_code',
-      code: req.body.code,
-    }),
-  });
-  
-  const { access_token } = await response.json();
-  res.send({ access_token });
+  try {
+    const response = await fetch(`https://discord.com/api/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code: req.body.code,
+      }),
+    });
+
+    // 1. 데이터를 딱 한 번만 읽어서 data 변수에 담습니다.
+    const data = await response.json();
+
+    // 2. 디스코드에서 거절(에러)을 당했다면?
+    if (!response.ok) {
+      console.error("🚨 디스코드 토큰 발급 실패 원인:", data);
+      return res.status(response.status).send(data); // 프론트엔드에도 에러라고 알려줍니다.
+    }
+
+    // 3. 성공했다면 토큰만 쏙 빼서 프론트엔드로 보내줍니다!
+    res.send({ access_token: data.access_token });
+
+  } catch (error) {
+    // 4. 서버 내부에서 뭔가 터졌을 때의 안전장치
+    console.error("🚨 서버 에러 발생:", error);
+    res.status(500).send({ error: "Internal Server Error" });
+  }
 });
 
 let gameSession = {
