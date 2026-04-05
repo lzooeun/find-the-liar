@@ -1,10 +1,10 @@
 // server/server.js
+
 import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -15,9 +15,10 @@ const __dirname = path.dirname(__filename);
 const wordsPath = path.join(__dirname, 'words.json');
 const wordsData = JSON.parse(fs.readFileSync(wordsPath, 'utf8'));
 
-app.use(cors({
-  origin: "*"
-}));
+const app = express();
+
+app.use(cors({ origin: "*" }));
+app.use(express.json());
 
 const server = createServer(app);
 const io = new Server(server, {
@@ -27,11 +28,6 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   }
 });
-
-const app = express();
-
-
-app.use(express.json())
 
 app.post('/server/api/token', async (req, res) => {
   try {
@@ -103,10 +99,10 @@ io.on('connection', (socket) => {
 
   socket.on('start_game', (data) => {
     try {
-      const { participants, rounds, timeLimit, discussionTime } = data;
+      const { participants, rounds, timeLimit, discussionTime, language } = data;
       if (!participants || participants.length === 0) return;
 
-      const currentWordList = wordsData[language] || wordsData["English"];
+      const currentWordList = wordsData[language || "English"];
 
       gameSession.participants = participants;
       gameSession.participantsCount = participants.length;
