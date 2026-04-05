@@ -21,10 +21,13 @@ app.use(cors());
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // 개발 중에는 모든 접근을 허용해 둡니다.
-    methods: ["GET", "POST"]
+    origin: process.env.FRONTEND_URL || "*", 
+    methods: ["GET", "POST"],
+    credentials: true 
   }
 });
+
+
 
 app.use(express.json())
 
@@ -322,7 +325,8 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
+
 server.listen(PORT, () => {
   console.log(`🚀 백엔드 서버가 http://localhost:${PORT} 에서 실행 중입니다.`);
 });
