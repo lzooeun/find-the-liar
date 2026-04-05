@@ -22,14 +22,13 @@ app.use(express.json());
 
 const server = createServer(app);
 const io = new Server(server, {
-  path: '/server/socket.io',
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
   }
 });
 
-app.post('/server/api/token', async (req, res) => {
+app.post('/api/token', async (req, res) => {
   try {
     const response = await fetch(`https://discord.com/api/oauth2/token`, {
       method: 'POST',
