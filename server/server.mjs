@@ -62,172 +62,198 @@ app.post('/api/token', async (req, res) => {
   }
 });
 
-let gameSession = {
-  participantsCount: 0,
-  readyCount: 0,
-  turnOrder: [],
-  currentIndex: 0,
-  currentRound: 1,
-  totalRounds: 2,
-  timeLimit: 15,
-  discussionTime: 30,
-  timerId: null,
-  discussionEndVotes: 0,
-  votes: {}, // {voterId: targetId}
-  liarId: null,
-  selectedPair: null,
-  voteCandidates: []
-};
+const activeGames = {}; // { 방번호: { 게임 데이터 } }
+const socketUserMap = {}; // 소켓ID -> { userId, roomId }
 
-const socketUserMap = {};
+// 💡 새로운 방이 만들어질 때 쓸 기본 게임 데이터 템플릿
+const createNewSession = () => ({
+  participants: [], participantsCount: 0, readyCount: 0, turnOrder: [],
+  currentIndex: 0, currentRound: 1, totalRounds: 2, timeLimit: 15,
+  discussionTime: 30, timerId: null, discussionEndVotes: 0,
+  votes: {}, liarId: null, selectedPair: null, voteCandidates: []
+});
 
 io.on('connection', (socket) => {
+  
+  // 1. 유저 출석 및 방(Room) 입장
   socket.on('register_player', (data) => {
-    socketUserMap[socket.id] = data.userId;
-    console.log(`✅ 출석부 등록: 소켓(${socket.id}) -> 유저(${data.userId})`);
+    // 프론트에서 넘어온 roomId가 없으면 임시 방(lobby)에 넣습니다.
+    const roomId = data.roomId || 'lobby'; 
+    
+    socketUserMap[socket.id] = { userId: data.userId, roomId: roomId };
+    socket.join(roomId); // ⭐️ 소켓을 해당 방에 강제 입장시킵니다!
+
+    // 이 방에 게임 세션이 없다면 새로 하나 만들어줍니다.
+    if (!activeGames[roomId]) {
+      activeGames[roomId] = createNewSession();
+    }
+    
+    console.log(`✅ 출석부 등록: 소켓(${socket.id}) -> 유저(${data.userId}), 방 번호: ${roomId}`);
   });
 
-  socket.on('join_signal', () => {
-    io.emit('must_refresh_participants');
-  });
-
-  const shuffleTurns = () => {
-    const shuffled = [...gameSession.participants].sort(() => Math.random() - 0.5);
-    gameSession.turnOrder = shuffled.map(p => (p.participant || p.user || p).id);
+  // 💡 공통 헬퍼: 현재 소켓이 속한 방의 게임 데이터를 가져오는 함수
+  const getSession = () => {
+    const userInfo = socketUserMap[socket.id];
+    return userInfo ? activeGames[userInfo.roomId] : null;
   };
 
+  const getRoomId = () => socketUserMap[socket.id]?.roomId;
+
+  socket.on('join_signal', () => {
+    const roomId = getRoomId();
+    if (roomId) io.to(roomId).emit('must_refresh_participants'); // ⭐️ 해당 방 사람들에게만 전송!
+  });
+
+  const shuffleTurns = (session) => {
+    const shuffled = [...session.participants].sort(() => Math.random() - 0.5);
+    session.turnOrder = shuffled.map(p => (p.participant || p.user || p).id);
+  };
+
+  // 2. 게임 시작
   socket.on('start_game', (data) => {
+    const roomId = getRoomId();
+    const session = getSession();
+    if (!roomId || !session) return;
+
     try {
       const { participants, rounds, timeLimit, discussionTime, language } = data;
       if (!participants || participants.length === 0) return;
 
-      const currentWordList = wordsData[language || "English"];
+      const currentWordList = wordsData[language || "English"] || wordsData["English"];
 
-      gameSession.participants = participants;
-      gameSession.participantsCount = participants.length;
-      gameSession.totalRounds = rounds;
-      gameSession.timeLimit = timeLimit;
-      gameSession.discussionTime = discussionTime;
-      gameSession.readyCount = 0;
-      gameSession.currentIndex = 0;
-      gameSession.currentRound = 1;
+      session.participants = participants;
+      session.participantsCount = participants.length;
+      session.totalRounds = rounds;
+      session.timeLimit = timeLimit;
+      session.discussionTime = discussionTime;
+      session.readyCount = 0;
+      session.currentIndex = 0;
+      session.currentRound = 1;
 
       const selectedPair = currentWordList[Math.floor(Math.random() * currentWordList.length)];
       const liarIndex = Math.floor(Math.random() * participants.length);
       const liar = participants[liarIndex].participant || participants[liarIndex].user || participants[liarIndex];
       
-      gameSession.liarId = liar.id;
-      gameSession.selectedPair = selectedPair;
+      session.liarId = liar.id;
+      session.selectedPair = selectedPair;
       
-      shuffleTurns();
+      shuffleTurns(session);
 
-      io.emit('start_loading');
+      io.to(roomId).emit('start_loading');
       setTimeout(() => {
-        io.emit('roles_assigned', {
-          liarId: gameSession.liarId,
+        io.to(roomId).emit('roles_assigned', {
+          liarId: session.liarId,
           category: selectedPair.category,
           word: selectedPair.word,
-          turnOrder: gameSession.turnOrder
+          turnOrder: session.turnOrder
         });
       }, 3000);
     } catch (error) { console.error(error); }
   });
 
   socket.on('player_ready', () => {
-    gameSession.readyCount++;
-    if (gameSession.readyCount === gameSession.participantsCount) {
-      startTurn();
+    const roomId = getRoomId();
+    const session = getSession();
+    if (!session) return;
+
+    session.readyCount++;
+    if (session.readyCount === session.participantsCount) {
+      startTurn(roomId, session);
     }
   });
 
-  const startTurn = () => {
-    clearTimeout(gameSession.timerId);
-    const currentSpeaker = gameSession.turnOrder[gameSession.currentIndex];
+  // 💡 아래 함수들은 방 번호(roomId)와 세션(session)을 넘겨받아 동작합니다.
+  const startTurn = (roomId, session) => {
+    clearTimeout(session.timerId);
+    const currentSpeaker = session.turnOrder[session.currentIndex];
 
-    io.emit('turn_sync', {
+    io.to(roomId).emit('turn_sync', {
       speakerId: currentSpeaker,
-      round: gameSession.currentRound,
-      totalRounds: gameSession.totalRounds,
-      timeLimit: gameSession.timeLimit,
+      round: session.currentRound,
+      totalRounds: session.totalRounds,
+      timeLimit: session.timeLimit,
       isDiscussion: false
     });
 
-    gameSession.timerId = setTimeout(() => {
-      handleEndTurn();
-    }, gameSession.timeLimit * 1000);
+    session.timerId = setTimeout(() => {
+      handleEndTurn(roomId, session);
+    }, session.timeLimit * 1000);
   };
 
-  const handleEndTurn = () => {
-    clearTimeout(gameSession.timerId);
-    gameSession.currentIndex++;
+  const handleEndTurn = (roomId, session) => {
+    clearTimeout(session.timerId);
+    session.currentIndex++;
 
-    if (gameSession.currentIndex >= gameSession.participantsCount) {
-      startOpenDiscussion();
+    if (session.currentIndex >= session.participantsCount) {
+      startOpenDiscussion(roomId, session);
     } else {
-      startTurn();
+      startTurn(roomId, session);
     }
   };
 
-  // 전체 토론 시간
-  const startOpenDiscussion = () => {
-    gameSession.discussionEndVotes = 0;
+  const startOpenDiscussion = (roomId, session) => {
+    session.discussionEndVotes = 0;
     
-    io.emit('turn_sync', {
+    io.to(roomId).emit('turn_sync', {
       speakerId: 'ALL',
-      round: gameSession.currentRound,
-      totalRounds: gameSession.totalRounds,
-      timeLimit: gameSession.discussionTime, // 위에서 저장한 설정값이 들어갑니다.
+      round: session.currentRound,
+      totalRounds: session.totalRounds,
+      timeLimit: session.discussionTime,
       isDiscussion: true
     });
 
-    gameSession.timerId = setTimeout(() => {
-      endDiscussionPhase();
-    }, gameSession.discussionTime * 1000);
+    session.timerId = setTimeout(() => {
+      endDiscussionPhase(roomId, session);
+    }, session.discussionTime * 1000);
   };
 
-  const endDiscussionPhase = () => {
-    clearTimeout(gameSession.timerId);
-    gameSession.currentRound++;
+  const endDiscussionPhase = (roomId, session) => {
+    clearTimeout(session.timerId);
+    session.currentRound++;
     
-    if (gameSession.currentRound > gameSession.totalRounds) {
-      const allIds = gameSession.participants.map(p => (p.participant || p.user || p).id);
-      startVotingPhase(allIds);
+    if (session.currentRound > session.totalRounds) {
+      const allIds = session.participants.map(p => (p.participant || p.user || p).id);
+      startVotingPhase(roomId, session, allIds);
     } else {
-      shuffleTurns();
-      gameSession.currentIndex = 0;
-      startTurn();
+      shuffleTurns(session);
+      session.currentIndex = 0;
+      startTurn(roomId, session);
     }
   };
 
-  const startVotingPhase = (candidates) => {
-    gameSession.votes = {};
-    gameSession.voteCandidates = candidates;
-    io.emit('start_voting', { candidates, timeLimit: 15 });
+  const startVotingPhase = (roomId, session, candidates) => {
+    session.votes = {};
+    session.voteCandidates = candidates;
+    io.to(roomId).emit('start_voting', { candidates, timeLimit: 15 });
 
-    clearTimeout(gameSession.timerId);
-    gameSession.timerId = setTimeout(() => {
-      calculateResult();
+    clearTimeout(session.timerId);
+    session.timerId = setTimeout(() => {
+      calculateResult(roomId, session);
     }, 15 * 1000);
   };
 
   socket.on('submit_vote', (data) => {
-    const { voterId, targetId } = data;
-    gameSession.votes[voterId] = targetId;
-    io.emit('update_vote_count', { votedCount: Object.keys(gameSession.votes).length });
+    const roomId = getRoomId();
+    const session = getSession();
+    if (!session) return;
 
-    if (Object.keys(gameSession.votes).length === gameSession.participantsCount) {
-      calculateResult();
+    const { voterId, targetId } = data;
+    session.votes[voterId] = targetId;
+    io.to(roomId).emit('update_vote_count', { votedCount: Object.keys(session.votes).length });
+
+    if (Object.keys(session.votes).length === session.participantsCount) {
+      calculateResult(roomId, session);
     }
   });
 
-  const calculateResult = () => {
-    clearTimeout(gameSession.timerId);
+  const calculateResult = (roomId, session) => {
+    clearTimeout(session.timerId);
     const voteCounts = {};
-    gameSession.voteCandidates.forEach(id => voteCounts[id] = 0);
-    Object.values(gameSession.votes).forEach(id => { voteCounts[id] += 1; });
+    session.voteCandidates.forEach(id => voteCounts[id] = 0);
+    Object.values(session.votes).forEach(id => { voteCounts[id] += 1; });
 
-    if (Object.keys(gameSession.votes).length === 0) {
-      io.emit('game_over', { isLiarCaught: false, liarId: gameSession.liarId, word: gameSession.selectedPair.word });
+    if (Object.keys(session.votes).length === 0) {
+      io.to(roomId).emit('game_over', { isLiarCaught: false, liarId: session.liarId, word: session.selectedPair.word });
       return;
     }
 
@@ -235,106 +261,121 @@ io.on('connection', (socket) => {
     const tiedIds = Object.keys(voteCounts).filter(id => voteCounts[id] === maxVotes);
 
     if (tiedIds.length === 1) {
-      const isLiarCaught = tiedIds[0] === gameSession.liarId;
+      const isLiarCaught = tiedIds[0] === session.liarId;
       
       if (isLiarCaught) {
-        io.emit('liar_last_chance', { liarId: gameSession.liarId, category: gameSession.selectedPair.category });
+        io.to(roomId).emit('liar_last_chance', { liarId: session.liarId, category: session.selectedPair.category });
       } else {
-        io.emit('game_over', { isLiarCaught: false, liarId: gameSession.liarId, mostVotedId: tiedIds[0], word: gameSession.selectedPair.word });
+        io.to(roomId).emit('game_over', { isLiarCaught: false, liarId: session.liarId, mostVotedId: tiedIds[0], word: session.selectedPair.word });
       }
     } else {
-      io.emit('tie_breaker_speech', { candidates: tiedIds, timeLimit: 30 });
-      gameSession.timerId = setTimeout(() => { startVotingPhase(tiedIds); }, 30 * 1000);
+      io.to(roomId).emit('tie_breaker_speech', { candidates: tiedIds, timeLimit: 30 });
+      session.timerId = setTimeout(() => { startVotingPhase(roomId, session, tiedIds); }, 30 * 1000);
     }
   };
 
   socket.on('vote_end_discussion', () => {
-    gameSession.discussionEndVotes++;
-    
-    io.emit('update_discussion_votes', { votes: gameSession.discussionEndVotes });
+    const roomId = getRoomId();
+    const session = getSession();
+    if (!session) return;
 
-    if (gameSession.discussionEndVotes >= gameSession.participantsCount) {
-      endDiscussionPhase();
+    session.discussionEndVotes++;
+    io.to(roomId).emit('update_discussion_votes', { votes: session.discussionEndVotes });
+
+    if (session.discussionEndVotes >= session.participantsCount) {
+      endDiscussionPhase(roomId, session);
     }
   });
 
-  socket.on('end_turn', handleEndTurn);
-
-  socket.on('join_signal', () => {
-    io.emit('must_refresh_participants');
+  socket.on('end_turn', () => {
+    const roomId = getRoomId();
+    const session = getSession();
+    if (session) handleEndTurn(roomId, session);
   });
 
   socket.on('submit_liar_guess', (data) => {
-    const { guess } = data;
-    const isCorrect = guess.trim() === gameSession.selectedPair.word.trim();
+    const roomId = getRoomId();
+    const session = getSession();
+    if (!session) return;
 
-    io.emit('game_over', {
+    const { guess } = data;
+    const isCorrect = guess.trim() === session.selectedPair.word.trim();
+
+    io.to(roomId).emit('game_over', {
       isLiarCaught: !isCorrect,
-      liarId: gameSession.liarId,
-      word: gameSession.selectedPair.word,
+      liarId: session.liarId,
+      word: session.selectedPair.word,
       liarGuess: guess,
       isLiarCorrect: isCorrect
     });
   });
 
   socket.on('disconnect', () => {
-    const leftUserId = socketUserMap[socket.id];
-    
-    if (leftUserId) {
-      console.log(`🔴 유저 완벽 퇴장 감지: ${leftUserId}`);
-      io.emit('player_left', { userId: leftUserId }); 
-      delete socketUserMap[socket.id]; // 출석부에서 삭제
+    const userInfo = socketUserMap[socket.id];
+    if (userInfo) {
+      const { userId, roomId } = userInfo;
+      const session = activeGames[roomId];
+      console.log(`🔴 유저 퇴장: 방(${roomId}) -> 유저(${userId})`);
+      
+      io.to(roomId).emit('player_left', { userId }); 
+      delete socketUserMap[socket.id]; 
 
-      if (gameSession.participantsCount > 0) {
-        gameSession.participants = gameSession.participants.filter(p => {
+      if (session && session.participantsCount > 0) {
+        session.participants = session.participants.filter(p => {
           const pId = p.participant?.id || p.user?.id || p.id;
-          return pId !== leftUserId;
+          return pId !== userId;
         });
-        gameSession.participantsCount = gameSession.participants.length;
+        session.participantsCount = session.participants.length;
 
-        if (leftUserId === gameSession.liarId) {
-          console.log('🚨 라이어 도주! 게임을 강제 종료합니다.');
-          clearTimeout(gameSession.timerId);
-          io.emit('game_over', {
+        if (userId === session.liarId) {
+          console.log(`🚨 방(${roomId}) 라이어 도주! 게임을 강제 종료합니다.`);
+          clearTimeout(session.timerId);
+          io.to(roomId).emit('game_over', {
             isLiarCaught: true, 
-            liarId: gameSession.liarId,
-            word: gameSession.selectedPair?.word,
+            liarId: session.liarId,
+            word: session.selectedPair?.word,
             reason: 'LIAR_FLED'
           });
           return;
         }
 
-        const currentSpeakerId = gameSession.turnOrder[gameSession.currentIndex];
-        if (leftUserId === currentSpeakerId && gameSession.timerId) {
-          console.log('🚨 현재 발언자 탈주! 다음 사람으로 턴을 넘깁니다.');
-          handleEndTurn(); 
+        const currentSpeakerId = session.turnOrder[session.currentIndex];
+        if (userId === currentSpeakerId && session.timerId) {
+          handleEndTurn(roomId, session); 
         }
 
-        gameSession.turnOrder = gameSession.turnOrder.filter(id => id !== leftUserId);
-        gameSession.voteCandidates = gameSession.voteCandidates.filter(id => id !== leftUserId);
+        session.turnOrder = session.turnOrder.filter(id => id !== userId);
+        session.voteCandidates = session.voteCandidates.filter(id => id !== userId);
+        
+        // 방에 사람이 아무도 없으면 세션 데이터 정리 (메모리 누수 방지)
+        if (session.participantsCount === 0) {
+          clearTimeout(session.timerId);
+          delete activeGames[roomId];
+          console.log(`🗑️ 방(${roomId}) 인원이 0명이라 세션을 폭파했습니다.`);
+        }
       }
     }
   });
 
   socket.on('return_to_lobby', () => {
-    console.log('🔄 게임 리셋 요청 수신! 대기실로 돌아갑니다.');
+    const roomId = getRoomId();
+    const session = getSession();
+    if (!session) return;
+
+    clearTimeout(session.timerId);
     
-    // 혹시라도 돌아가고 있는 타이머가 있다면 확실하게 정지
-    clearTimeout(gameSession.timerId);
+    // 다음 판을 위해 세션 초기화
+    session.readyCount = 0;
+    session.turnOrder = [];
+    session.currentIndex = 0;
+    session.currentRound = 1;
+    session.discussionEndVotes = 0;
+    session.votes = {};
+    session.liarId = null;
+    session.selectedPair = null;
+    session.voteCandidates = [];
 
-    // 다음 게임을 위해 세션 데이터 초기화 (참가자 설정 제외)
-    gameSession.readyCount = 0;
-    gameSession.turnOrder = [];
-    gameSession.currentIndex = 0;
-    gameSession.currentRound = 1;
-    gameSession.discussionEndVotes = 0;
-    gameSession.votes = {};
-    gameSession.liarId = null;
-    gameSession.selectedPair = null;
-    gameSession.voteCandidates = [];
-
-    // 모든 클라이언트에게 "전원 로비로 집합!" 명령 하달
-    io.emit('game_reset');
+    io.to(roomId).emit('game_reset');
   });
 });
 

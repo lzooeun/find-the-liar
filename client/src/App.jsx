@@ -216,7 +216,7 @@ function App() {
       const auth = await discordSdk.commands.authenticate({ access_token });
       if (auth) {
         setPlayer(auth.user);
-        socket.emit('register_player', { userId: auth.user.id });
+        socket.emit('register_player', { userId: auth.user.id, roomId: discordSdk.instanceId });
       }
 
       await refreshParticipants();
