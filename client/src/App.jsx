@@ -11,8 +11,8 @@ import '@fontsource/inter/800-italic.css';
 import './App.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || window.location.origin;
-const socket = io(BACKEND_URL, {
-  path: '/socket.io',
+const socket = io({
+  path: '/server/socket.io', // 디스코드가 이걸 받아서 Railway의 /socket.io 로 전달합니다.
   transports: ['websocket']
 });
 const discordSdk = new DiscordSDK(import.meta.env.VITE_DISCORD_CLIENT_ID);
@@ -206,9 +206,9 @@ function App() {
         scope: ["identify", "guilds", "rpc.voice.read"],
       });
 
-      const response = await fetch(`${BACKEND_URL}/api/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/server/api/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),
       });
       const { access_token } = await response.json();
