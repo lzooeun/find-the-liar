@@ -23,10 +23,11 @@ app.use(cors({
 
 const server = createServer(app);
 const io = new Server(server, {
+  path: '/server/socket.io',
   cors: {
-    origin: process.env.FRONTEND_URL || "*", 
+    origin: process.env.FRONTEND_URL || "*",
     methods: ["GET", "POST"],
-    credentials: true 
+    credentials: true
   }
 });
 
@@ -34,7 +35,7 @@ const io = new Server(server, {
 
 app.use(express.json())
 
-app.post('/api/token', async (req, res) => {
+app.post('/server/api/token', async (req, res) => {
   const response = await fetch(`https://discord.com/api/oauth2/token`, {
     method: 'POST',
     headers: {
